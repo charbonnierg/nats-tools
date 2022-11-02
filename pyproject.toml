@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nats-tools"
+authors = [
+    { author = "Guillaume Charbonnier", email = "guillaume.charbonnier@araymond.com" },
+]
+description = "NATS Toolkit"
+readme = "README.md"
+requires-python = ">=3.7"
+keywords = ["nats", "nats-server"]
+license = { text = "Apache-2.0" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+]
+dynamic = ["version"]
+dependencies = ["httpx", "Jinja2"]
+
+[project.optional-dependencies]
+nats = ["nats-py"]
+nkeys = ["nats-py[nkeys]"]
+websocket = ["aiohttp"]
+tests = ["pytest", "pytest-cov"]
+dev = ["black", "isort", "flake8", "mypy"]
+
+[project.urls]
+Repository = "https://github.com/charbonnierg/nats-tools"
+Issues = "https://github.com/charbonnierg/nats-tools/issues"
+
+[project.entry-points."pytest11"]
+nats = "nats_tools.fixtures"
+
+[tool.setuptools.dynamic]
+version = { attr = "nats_tools.__version__" }

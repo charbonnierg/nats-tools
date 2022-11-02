@@ -1,0 +1,191 @@
+# Server listenning host and port
+host: {{ server_host }}
+port: {{ server_port }}
+{% if client_advertise -%}
+# Address advertised to client
+client_advertise: {{ client_advertise }}
+{% endif -%}
+{% if server_name -%}
+# Server name
+server_name: {{ server_name }}
+{% endif -%}
+{% if server_tags is defined and server_tags -%}
+# A set of tags describing properties of the server.
+# This will be exposed through /varz and can be used for system resource requests, such as placement of streams
+server_tags: {{ server_tags|tojson }}
+{% endif -%}
+{% if debug is defined %}
+# Enable debug log messages
+debug: {{ debug|tojson }}
+{% endif -%}
+{% if trace is defined -%}
+# Enable protocol trace log messages
+trace: {{ trace|tojson }}
+{% endif -%}
+{% if trace_verbose is defined -%}
+# Enable protocol trace log messages (including system account)
+trace_verbose: {{ trace_verbose|tojson }}
+{% endif -%}
+{% if logtime is defined -%}
+logtime: {{ logtime|tojson }}
+{% endif -%}
+{% if pid_file is defined -%}
+# Write process id to file
+pid_file: {{ pid_file }}
+{% endif -%}
+{% if port_file_dir is defined -%}
+# Directory to write a file containing the servers open ports
+port_file_dir: {{ port_file_dir }}
+{% endif -%}
+{% if log_file is defined -%}
+# Write logs to file
+log_file: {{ log_file }}
+{% endif -%}
+{% if log_size_limit is defined -%}
+# roll over to a new file after limit is reached
+log_size_limit: {{ log_size_limit }}
+{% endif -%}
+{% if tls %}
+# TLS configuration
+tls {
+  cert_file {{ tls_cert_file }}
+  key_file {{ tls_key_file }}
+  {%- if tls_ca_file %}
+  ca_file {{ tls_ca_file }}
+  verify true
+  {%- endif %}
+}
+{% endif -%}
+{% if cluster %}
+# Cluster configuration
+cluster {
+  {%- if cluster_name is defined %}
+  # Cluster name
+  name: {{ cluster_name }}
+  {%- endif %}
+  # Address where NATS listens for incoming route connections
+  listen: {{ cluster_listen }}
+  {%- if cluster_url is defined %}
+  # Advertise how this server can be contacted by other cluster members
+  advertise: {{ cluster_url }}
+  {%- endif %}
+  {%- if no_advertise is defined %}
+  # Do not send or gossip client URLs to other servers in the cluster and do not tell clients about other servers' client URLs
+  no_advertise: {{ no_advertise|tojson }}
+  {%- endif %}
+  {%- if routes is defined %}
+  # A list of other servers (URLs) to cluster with. Self-routes are ignored.
+  routes: {{ routes|tojson }}
+  {%- endif %}
+}
+{% endif -%}
+{%- if websocket %}
+websocket {
+  host: {{ websocket_listen_address }}
+  port: {{ websocket_listen_port }}
+  {%- if websocket_advertise_url %}
+  # Advertise how this server can be reached by websocket clients
+  advertise: {{ websocket_advertise_url }}
+  {%- endif %}
+  {%- if websocket_tls %}
+  # Enable TLS for websocket connections
+  tls {
+    cert_file: {{ websocket_tls_cert_file }}
+    key_file: {{ websocket_tls_key_file }}
+  }
+  {%- else %}
+  no_tls: true
+  {%- endif %}
+  {%- if websocket_same_origin is defined %}
+  # HTTP origin header must match the request’s hostname
+  same_origin: {{ websocket_same_origin|tojson }}
+  {%- endif %}
+  {%- if websocket_allowed_origins is defined and websocket_allowed_origins %}
+  # This option is used only when the http request presents an Origin header
+  # which is the case for web browsers. If no Origin header is present, this
+  # check will not be performed
+  allowed_origins: {{ websocket_allowed_origins|tojson }}
+  {%- endif %}
+  {%- if websocket_compression is defined %}
+  # Enables support for compressed websocket frames
+  # For compression to be used, both server and client have to support it.
+  compression: {{ websocket_compression|tojson }}
+  {%- endif %}
+}
+{% endif -%}
+{%- if enable_jetstream %}
+# Jetstream configuration
+jetstream {
+  store_dir: "{{ jetstream_store_dir|default('/tmp/data/jetstream') }}"
+  {%- if jetstream_domain %}
+  domain: "{{ jetstream_domain }}"
+  {%- endif %}
+  {%- if max_memory_store %}
+  max_memory_store: {{ max_memory_store }}
+  {%- endif %}
+  {%- if max_file_store %}
+  max_file_store: {{ max_file_store }}
+  {%- endif %}
+  {%- if max_outstanding_catchup %}
+  max_outstanding_catchup: {{ max_outstanding_catchup }}
+  {%- endif %}
+}
+{% endif -%}
+{%- if allow_leafnodes or leafnode_remotes %}
+# Enable leaf-nodes
+leafnodes {
+{%- if allow_leafnodes %}
+  host: {{ leafnodes_listen_address }}
+  port: {{ leafnodes_listen_port  }}
+{%- endif %}
+{%- if leafnode_remotes %}
+  remotes = {{ leafnode_remotes|tojson }}
+{%- endif %}
+}
+{% endif %}
+# Enable monitoring endpoint
+http_port: 8222
+{% if user and password %}
+authorization {
+  # Clients must authenticate using user and password
+  user: {{ user }}
+  password: {{ password }}
+}
+{%- elif token %}
+authorization {
+  # Clients must authenticate using token
+  token: {{ token }}
+}
+{% elif users %}
+authorization {
+  # Clients must authenticate using one of the user connection listed below
+  users: {{ users|tojson }}
+}
+{% elif operator %}
+# Operator JWT
+operator: {{ operator }}
+
+# System account public key
+system_account: {{ system_account }}
+
+# Configuration of the nats based resolver
+resolver {
+    type: full
+    # Directory in which the account jwt will be stored
+    dir: "{{jwt_path}}"
+    # In order to support jwt deletion, set to true
+    # If the resolver type is full delete will rename the jwt.
+    # This is to allow manual restoration in case of inadvertent deletion.
+    # To restore a jwt, remove the added suffix .delete and restart or send a reload signal.
+    # To free up storage you must manually delete files with the suffix .delete.
+    allow_delete: {{ allow_delete_jwt|tojson }}
+    # Interval at which a nats-server with a nats based account resolver will compare
+    # it's state with one random nats based account resolver in the cluster and if needed, 
+    # exchange jwt and converge on the same set of jwt.
+    interval: "{{ compare_jwt_interval }}"
+}
+{% if jwts %}
+# Preload the nats based resolver with accounts JWT
+resolver_preload: {{jwts|tojson(indent=2)}}
+{%- endif %}
+{% endif %}
