@@ -2,6 +2,12 @@
 
 > Tools to work with NATS server from Python.
 
+- [NATSD](#auth)
+- [Templates](#templates)
+- [Nkeys](#nkeys)
+- [JWTs](#jwts)
+- [Auth](#auth)
+
 ## `NATSD`
 
 Use this class to easily start/stop NATS servers:
