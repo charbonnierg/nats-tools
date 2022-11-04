@@ -12,8 +12,8 @@ from pathlib import Path
 
 import httpx
 
-from nats_tools.generator import ConfigGenerator
 from nats_tools.monitor import NATSMonitor
+from nats_tools.templates import ConfigGenerator
 
 DEFAULT_BIN_DIR = Path.home().joinpath("nats-server").absolute()
 
@@ -43,7 +43,7 @@ class NATSD:
         server_tags: t.Optional[t.Dict[str, str]] = None,
         user: t.Optional[str] = None,
         password: t.Optional[str] = None,
-        users: t.List[t.Dict[str, t.Any]] = None,
+        users: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
         token: t.Optional[str] = None,
         http_port: int = 8222,
         debug: t.Optional[bool] = None,
@@ -87,7 +87,7 @@ class NATSD:
         system_account_jwt: t.Optional[str] = None,
         allow_delete_jwt: t.Optional[bool] = None,
         compare_jwt_interval: t.Optional[str] = None,
-        resolver_preload: t.Dict[str, str] = None,
+        resolver_preload: t.Optional[t.Dict[str, str]] = None,
         config_file: t.Union[str, Path, None] = None,
         max_cpus: t.Optional[float] = None,
         start_timeout: float = 1,

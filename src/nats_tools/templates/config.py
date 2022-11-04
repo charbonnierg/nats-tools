@@ -1,28 +1,16 @@
 import typing as t
 from pathlib import Path
 
-import jinja2
-
-
-def load_template_from_path(template: t.Union[str, Path]) -> jinja2.Template:
-    filepath = Path(template).absolute()
-    if not filepath.exists():
-        raise FileNotFoundError(filepath.as_posix())
-    loader = jinja2.FileSystemLoader(filepath.parent)
-    environment = jinja2.Environment(loader=loader)
-    template = environment.get_template(filepath.name)
-    return template
-
-
-def load_template_from_name(template: str) -> jinja2.Template:
-    loader = jinja2.FileSystemLoader(Path(__file__).parent.joinpath("templates"))
-    environment = jinja2.Environment(loader=loader)
-    template = environment.get_template(template)
-    return template
+from .utils import load_template_from_name, load_template_from_path
 
 
 class ConfigGenerator:
     def __init__(self, template: t.Union[str, Path] = "default.conf.j2") -> None:
+        """Create a new instance of config generator.
+
+        Arguments:
+            template: the template used to render configuration.
+        """
         if isinstance(template, Path):
             self.template = load_template_from_path(template)
         elif Path(template).is_file():
@@ -39,7 +27,7 @@ class ConfigGenerator:
         server_tags: t.Optional[t.Dict[str, str]] = None,
         user: t.Optional[str] = None,
         password: t.Optional[str] = None,
-        users: t.List[t.Dict[str, t.Any]] = None,
+        users: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
         token: t.Optional[str] = None,
         http_port: int = 8222,
         debug: t.Optional[bool] = None,
@@ -83,9 +71,9 @@ class ConfigGenerator:
         system_account_jwt: t.Optional[str] = None,
         allow_delete_jwt: t.Optional[bool] = None,
         compare_jwt_interval: t.Optional[str] = None,
-        resolver_preload: t.Dict[str, str] = None,
+        resolver_preload: t.Optional[t.Dict[str, str]] = None,
     ) -> str:
-        """Render configuration"""
+        """Render configuration according to arguments."""
         kwargs: t.Dict[str, t.Any] = {}
 
         kwargs["server_host"] = address

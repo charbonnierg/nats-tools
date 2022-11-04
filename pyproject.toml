@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,7 +17,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
 ]
 dynamic = ["version"]
-dependencies = ["httpx", "Jinja2"]
+dependencies = ["httpx", "Jinja2", "PyJWT", "cryptography"]
 
 [project.optional-dependencies]
 nats = ["nats-py"]
@@ -31,7 +31,7 @@ Repository = "https://github.com/charbonnierg/nats-tools"
 Issues = "https://github.com/charbonnierg/nats-tools/issues"
 
 [project.entry-points."pytest11"]
-nats = "nats_tools.fixtures"
+nats = "nats_tools.testing.fixtures"
 
 [tool.setuptools.dynamic]
 version = { attr = "nats_tools.__version__" }

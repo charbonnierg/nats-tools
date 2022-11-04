@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from _pytest.fixtures import SubRequest
 
+from nats_tools.auth import Operator
 from nats_tools.natsd import NATSD
 
 F = t.TypeVar("F", bound=t.Callable[..., t.Any])
@@ -28,6 +29,19 @@ def nats_server(request: SubRequest) -> t.Iterator[NATSD]:
             nats.stop()
 
 
+@pytest.fixture
+def nats_operator(request: SubRequest) -> Operator:
+    if hasattr(request, "param"):
+        params = dict(request.param)
+    else:
+        params = {}
+    if "name" not in params:
+        params["name"] = "TEST"
+    keypair, operator = Operator.create(**params)
+    operator._kp = keypair
+    return operator
+
+
 def parametrize_nats_server(
     address: str = "127.0.0.1",
     port: int = 4222,
@@ -36,7 +50,7 @@ def parametrize_nats_server(
     server_tags: t.Optional[t.Dict[str, str]] = None,
     user: t.Optional[str] = None,
     password: t.Optional[str] = None,
-    users: t.List[t.Dict[str, t.Any]] = None,
+    users: t.Optional[t.List[t.Dict[str, t.Any]]] = None,
     token: t.Optional[str] = None,
     http_port: int = 8222,
     debug: t.Optional[bool] = None,
@@ -80,7 +94,7 @@ def parametrize_nats_server(
     system_account_jwt: t.Optional[str] = None,
     allow_delete_jwt: t.Optional[bool] = None,
     compare_jwt_interval: t.Optional[str] = None,
-    resolver_preload: t.Dict[str, str] = None,
+    resolver_preload: t.Optional[t.Dict[str, str]] = None,
     config_file: t.Union[str, Path, None] = None,
     max_cpus: t.Optional[float] = None,
     start_timeout: float = 1,

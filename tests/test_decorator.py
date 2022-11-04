@@ -1,5 +1,5 @@
-from nats_tools.fixtures import parametrize_nats_server
 from nats_tools.natsd import NATSD
+from nats_tools.testing.fixtures import parametrize_nats_server
 
 
 @parametrize_nats_server(address="0.0.0.0")

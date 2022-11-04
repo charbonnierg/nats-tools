@@ -96,7 +96,7 @@ class NATSMonitor:
         Returns:
             results as a dictionary.
         """
-        params = {
+        params: t.Dict[str, t.Any] = {
             "leader-only": leader_only,
             "limit": limit,
             "offset": offset,
@@ -204,7 +204,7 @@ class NATSMonitor:
         Returns:
             results as a dictionary.
         """
-        params = {
+        params: t.Dict[str, t.Any] = {
             "subs": subs,
             "offset": offset,
             "limit": limit,
@@ -259,7 +259,7 @@ class NATSMonitor:
         Returns:
             results as dict
         """
-        params = {"accs": bool(accs)}
+        params: t.Dict[str, t.Any] = {"accs": bool(accs)}
         if gw_name:
             params["gw_name"] = gw_name
         if acc_name:
@@ -338,7 +338,7 @@ class AsyncNATSMonitor:
         Returns:
             results as a dictionary.
         """
-        params = {
+        params: t.Dict[str, t.Any] = {
             "leader-only": leader_only,
             "limit": limit,
             "offset": offset,
@@ -446,7 +446,7 @@ class AsyncNATSMonitor:
         Returns:
             results as a dictionary.
         """
-        params = {
+        params: t.Dict[str, t.Any] = {
             "subs": subs,
             "offset": offset,
             "limit": limit,
@@ -501,7 +501,7 @@ class AsyncNATSMonitor:
         Returns:
             results as dict
         """
-        params = {"accs": bool(accs)}
+        params: t.Dict[str, t.Any] = {"accs": bool(accs)}
         if gw_name:
             params["gw_name"] = gw_name
         if acc_name:
