@@ -208,7 +208,7 @@ def decode_user(
     )
 
 
-def encode_claims(
+def encode(
     claims: t.Union[Claims, OperatorClaims, AccountClaims, ScopedUserClaims],
     seed: t.Union[str, bytes, bytearray, KeyPair],
 ) -> str:
@@ -249,7 +249,7 @@ def encode_operator(
             exp=not_after,
             nbf=not_before,
         )
-        token = encode_claims(claims, seed=operator_seed)
+        token = encode(claims, seed=operator_seed)
     finally:
         kp.wipe()
     return token
@@ -281,7 +281,7 @@ def encode_account(
             exp=not_after,
             nbf=not_before,
         )
-        token = encode_claims(claims, seed=operator_seed)
+        token = encode(claims, seed=operator_seed)
     finally:
         kp.wipe()
     return token
@@ -313,7 +313,7 @@ def encode_user(
             exp=not_after,
             nbf=not_before,
         )
-        token = encode_claims(claims, seed=account_seed)
+        token = encode(claims, seed=account_seed)
     finally:
         kp.wipe()
     return token
@@ -335,7 +335,7 @@ def generate_credentials(
         else:
             if user_claims.nats.type != CredsType.USER:
                 raise errors.InvalidAccessTypeError()
-            user_jwt = encode_claims(user_claims, seed=account_seed)
+            user_jwt = encode(user_claims, seed=account_seed)
     user_kp = load_keypair_from_seed(user_seed)
     try:
 

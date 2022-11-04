@@ -518,7 +518,7 @@ class Export(Info, ImportExportBase):
             return values
         dict_values = t.cast(t.Mapping[str, t.Any], values)
         if "response_type" in dict_values:
-            values = {
+            dict_values = {
                 **dict_values,
                 "response_type": ResponseType(dict_values["response_type"]),
             }
@@ -526,13 +526,13 @@ class Export(Info, ImportExportBase):
             "service_latency" in dict_values
             and dict_values["service_latency"] is not None
         ):
-            values = {
+            dict_values = {
                 **dict_values,
                 "service_latency": ServiceLatency.from_values(
                     dict_values["service_latency"]
                 ),
             }
-        return super().from_values(values)
+        return super().from_values(dict_values)
 
 
 SigningKeyT = t.TypeVar("SigningKeyT", bound="SigningKey")
@@ -614,7 +614,7 @@ class Operator(GenericFields):
                     for key in dict_values["signing_keys"]
                 ],
             }
-        return super().from_values(values)
+        return super().from_values(dict_values)
 
 
 AccountT = t.TypeVar("AccountT", bound="Account")
