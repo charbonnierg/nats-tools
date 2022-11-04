@@ -7,6 +7,7 @@ import httpx
 import jwt
 import jwt.algorithms
 import jwt.exceptions
+import typing_extensions as t_
 
 ScopeType = t.Union[str, t.List[str], t.Tuple[str], t.Set[str]]
 
@@ -60,7 +61,7 @@ class Access:
 class AccessToken(BaseJWT):
     """Access token received from OIDC provider"""
 
-    typ: t.Literal["Bearer"]
+    typ: t_.Literal["Bearer"]
     allowed_origins: t.List[str]
     realm_access: Access
     resource_access: t.Dict[str, Access]
@@ -71,7 +72,7 @@ class AccessToken(BaseJWT):
 class IDToken(BaseJWT):
     """ID token received from OIDC provider"""
 
-    typ: t.Literal["ID"]
+    typ: t_.Literal["ID"]
     at_hash: str
     auth_time: int
 

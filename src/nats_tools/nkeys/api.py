@@ -1,6 +1,7 @@
 import typing as t
 
 import cryptography.exceptions
+import typing_extensions as t_
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from . import errors, parser
@@ -39,7 +40,7 @@ def verify(
         raise errors.InvalidSignatureError()
 
 
-def create_keypair(prefix: t.Literal["user", "account", "operator"]) -> KeyPair:
+def create_keypair(prefix: t_.Literal["user", "account", "operator"]) -> KeyPair:
     """Create a new keypair"""
     return KeyPair.create(prefix=prefix)
 

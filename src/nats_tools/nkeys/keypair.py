@@ -2,6 +2,7 @@ import secrets
 import typing as t
 
 import cryptography.exceptions
+import typing_extensions as t_
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
@@ -50,7 +51,7 @@ class KeyPair:
         """
         return self.signing_key.sign(input)
 
-    def verify(self, input: bytes, sig: bytes) -> t.Literal[True]:
+    def verify(self, input: bytes, sig: bytes) -> t_.Literal[True]:
         """Verify some data and signature.
 
         Arguments:
@@ -154,7 +155,7 @@ class KeyPair:
         return cls.from_seed(seed)
 
     @classmethod
-    def create(cls, prefix: t.Literal["user", "account", "operator"]) -> "KeyPair":
+    def create(cls, prefix: t_.Literal["user", "account", "operator"]) -> "KeyPair":
         """Create an NATS nkeys keypair. Keypairs must be issued for a specific access type, one of:
         - user
         - account

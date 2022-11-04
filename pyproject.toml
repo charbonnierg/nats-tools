@@ -17,7 +17,13 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
 ]
 dynamic = ["version"]
-dependencies = ["httpx", "Jinja2", "PyJWT", "cryptography"]
+dependencies = [
+    "httpx",
+    "Jinja2",
+    "PyJWT",
+    "cryptography",
+    "typing_extensions ; python_version <= '3.7'",
+]
 
 [project.optional-dependencies]
 nats = ["nats-py"]

@@ -2,6 +2,8 @@ import typing as t
 from dataclasses import asdict, dataclass
 from enum import Enum
 
+import typing_extensions as t_
+
 from . import errors
 
 
@@ -538,7 +540,7 @@ SigningKeyT = t.TypeVar("SigningKeyT", bound="SigningKey")
 
 @dataclass
 class SigningKey(APIType):
-    kind: t.Literal["user_scope"]
+    kind: t_.Literal["user_scope"]
     key: str
     role: str
     template: t.Optional[PartialUserPermissionsLimits] = None
