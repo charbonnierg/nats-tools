@@ -84,6 +84,8 @@ kp = load_keypair_from_seed(b"SOAMJ4USJU7UYAGOET2H4MTOLYI3LNBBTLW77B64PM2KRVQ6OW
 
 ## JWTs
 
+> `nats_tools.auth` provides an object-oriented API to manage operators and accounts. It can also be used to generate JWTs.
+
 Use this module to generate NATS JWTs for operators, accounts and users.
 
 ```python
@@ -120,4 +122,20 @@ account_claims = jwts.decode_account(
     account_jwt,
     operator_public_key=operator_kp.public_key,
 )
+```
+
+## Auth
+
+Manage NATS operators and accounts.
+
+```python
+from nats_tools.auth import Operator, Account
+from nats_tools.nkeys import create_keypair
+
+
+keypair, op = Operator.create(name="test")
+
+account_kp = create_keypair("account")
+
+account_jwt = op.sign_account("demo", account_public_key=account_kp.public_key)
 ```
