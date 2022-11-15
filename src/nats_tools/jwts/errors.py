@@ -14,3 +14,8 @@ class InvalidSubjectError(jwt.exceptions.InvalidTokenError):
 class InvalidAccessTypeError(jwt.exceptions.InvalidTokenError):
     def __str__(self) -> str:
         return "jwt: invalid access type"
+
+
+class InvalidScopeError(jwt.exceptions.InvalidTokenError):
+    def __str__(self) -> str:
+        return "jwt: invalid scope"

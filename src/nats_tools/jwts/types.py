@@ -1,3 +1,5 @@
+import collections
+from datetime import datetime, timezone
 import typing as t
 from dataclasses import asdict, dataclass
 from enum import Enum
@@ -49,9 +51,9 @@ class APIType:
 
 @dataclass
 class NATSLimits(APIType):
-    data: int
-    payload: int
-    subs: int
+    data: t.Optional[int] = None
+    payload: t.Optional[int] = None
+    subs: t.Optional[int] = None
 
 
 @dataclass
@@ -337,7 +339,7 @@ PartialUserPermissionsLimitsT = t.TypeVar(
 
 
 @dataclass
-class PartialUserPermissionsLimits(UserLimits, PartialNATSLimits):
+class PartialUserPermissionsLimits(UserLimits, Permissions, PartialNATSLimits):
     bearer_token: t.Optional[bool] = None
     allowed_connection_types: t.Optional[t.List[ConnectionType]] = None
 
@@ -372,11 +374,6 @@ class PartialUserPermissionsLimits(UserLimits, PartialNATSLimits):
 @dataclass
 class IssuerAccount(APIType):
     issuer_account: str
-
-
-@dataclass
-class User(UserPermissionsLimits, IssuerAccount):  # type: ignore[misc]
-    pass
 
 
 VersionTypeT = t.TypeVar("VersionTypeT", bound="VersionType")
@@ -572,6 +569,11 @@ class SigningKey(APIType):
 class GenericFields(VersionType):
     tags: t.Optional[t.List[str]] = None
 
+    def parse_tags(self, sep: str = ":") -> t.Dict[str, str]:
+        if self.tags is None:
+            return {}
+        return dict((value.split(sep) for value in self.tags))
+
 
 OperatorT = t.TypeVar("OperatorT", bound="Operator")
 
@@ -681,6 +683,16 @@ class Account(GenericFields, Info):
                 **dict_values,
                 "limits": OperatorLimits.from_values(dict_values["limits"]),
             }
+        if "signing_keys" in dict_values and dict_values["signing_keys"] is not None:
+            dict_values = {
+                **dict_values,
+                "signing_keys": [
+                    SigningKey.from_values(key)
+                    if isinstance(key, collections.Mapping)
+                    else key
+                    for key in dict_values["signing_keys"]
+                ],
+            }
         if (
             "default_permissions" in dict_values
             and dict_values["default_permissions"] is not None
@@ -743,6 +755,11 @@ class OptionalClaimsData(APIType):
     aud: t.Optional[str] = None
     exp: t.Optional[int] = None
     nbf: t.Optional[int] = None
+
+    def get_expire_timestamp(self) -> t.Optional[datetime]:
+        if self.exp is None:
+            return None
+        return datetime.fromtimestamp(self.exp, tz=timezone.utc)
 
 
 ClaimsDataT = t.TypeVar("ClaimsDataT", bound="RequiredClaimsData")

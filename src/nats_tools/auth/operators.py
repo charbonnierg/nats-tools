@@ -1,25 +1,18 @@
+"""Manage NATS operators.
+
+This module exposes the `Operator` class.
+
+`Operator` instances are created using either a JWT, or keyword arguments.
+They do not save private key or seed within their state, instead, all methods
+requiring a seed expect the seed to be provided as method argument.
+"""
 import typing as t
 from datetime import datetime
 from time import time
 
-from nats_tools.jwts.api import (
-    _iat,
-    _jti,
-    decode_operator,
-    encode_account,
-    encode_operator,
-)
-from nats_tools.jwts.types import Account as NATSAccount
-from nats_tools.jwts.types import Operator as NATSOperator
-from nats_tools.jwts.types import SigningKey
-from nats_tools.nkeys import (
-    KeyPair,
-    constants,
-    create_keypair,
-    errors,
-    load_keypair_from_seed,
-    parser,
-)
+from nats_tools import nkeys
+from nats_tools import jwts
+from nats_tools.jwts.api import _iat, _jti
 
 from .accounts import Account
 
@@ -28,9 +21,8 @@ class Operator:
     def __init__(
         self,
         name: str,
-        public_key: t.Union[str, bytes],
-        nats: t.Optional[NATSOperator] = None,
-        seed: t.Union[None, str, bytes, bytearray] = None,
+        public_key: t.Union[str, bytes, bytearray],
+        nats: t.Optional[jwts.types.Operator] = None,
         audience: t.Optional[str] = None,
         not_after: t.Optional[int] = None,
         not_before: t.Optional[int] = None,
@@ -39,41 +31,39 @@ class Operator:
         **kwargs: t.Any,
     ) -> None:
         """An NATS operator."""
+        operator_public_key = nkeys.encoding._to_bytes(public_key)
+        prefix, public_bytes = nkeys.encoding.decode_public_key(
+            public_key=operator_public_key
+        )
+        if prefix != nkeys.constants.PREFIX_BYTE_OPERATOR:
+            raise nkeys.errors.InvalidPublicKeyError()
+        self.public_key = nkeys.encoding.encode_public_key(prefix, public_bytes).decode(
+            "utf-8"
+        )
         self.name = name
         self.audience = audience
         self.not_after = not_after
         self.not_before = not_before
         self.iat = iat
         self.jti = jti
-        self.nats = nats or NATSOperator.from_values(kwargs)
-        self._kp: t.Optional[KeyPair] = None
-        prefix, public_bytes = parser.decode_public_key(public_key=public_key)
-        if prefix != constants.PREFIX_BYTE_OPERATOR:
-            raise errors.InvalidPublicKeyError()
-        self.public_key = parser.encode_public_key(prefix, public_bytes).decode("utf-8")
-        if seed:
-            kp = load_keypair_from_seed(seed)
-            if kp.public_key.decode("utf-8") != self.public_key:
-                raise errors.InvalidPublicKeyError()
-            self._kp = kp
+        self.nats = nats or jwts.types.Operator.from_values(kwargs)
 
     @classmethod
     def create(
         cls,
         name: str,
-        nats: t.Optional[NATSOperator] = None,
+        nats: t.Optional[jwts.types.Operator] = None,
         audience: t.Optional[str] = None,
         not_after: t.Optional[int] = None,
         not_before: t.Optional[int] = None,
         iat: t.Optional[int] = None,
         jti: t.Optional[str] = None,
-    ) -> t.Tuple[KeyPair, "Operator"]:
-        kp = create_keypair("operator")
+    ) -> t.Tuple[nkeys.KeyPair, "Operator"]:
+        kp = nkeys.create_keypair("operator")
         return kp, cls(
             name=name,
             nats=nats,
             public_key=kp.public_key,
-            seed=kp.seed,
             audience=audience,
             not_after=not_after,
             not_before=not_before,
@@ -81,20 +71,17 @@ class Operator:
             jti=jti,
         )
 
-    def encode(self, seed: t.Union[str, bytes, bytearray, None] = None) -> str:
+    def encode(self, seed: t.Union[str, bytes, bytearray]) -> str:
         """Return operator JWT"""
-        if seed is None:
-            if self._kp is None:
-                raise errors.CannotSignError()
-            seed = self._kp.seed
-        kp = load_keypair_from_seed(seed)
-        if kp.public_key.decode("utf-8") != self.public_key:
-            raise errors.InvalidPublicKeyError()
+        kp = nkeys.from_seed(seed)
+        public_key = kp.public_key
+        if public_key.decode("utf-8") != self.public_key:
+            raise nkeys.errors.InvalidPublicKeyError()
         if self.iat is None:
             self.iat = _iat()
         if self.jti is None:
             self.jti = _jti()
-        return encode_operator(
+        return jwts.encode_operator(
             name=self.name,
             operator_seed=kp.seed,
             operator=self.nats,
@@ -109,35 +96,27 @@ class Operator:
     def decode(
         cls,
         token: t.Union[str, bytes],
-        operator_public_key: t.Union[str, bytes, None] = None,
-        operator_seed: t.Union[str, bytes, bytearray, None] = None,
+        public_key: t.Union[str, bytes, None] = None,
         verify: bool = True,
     ) -> "Operator":
         """Create a new Operator from operator JWT"""
-        if operator_public_key is None and operator_seed is None:
+        if public_key is None:
             # Do not verify issuer because operators are self-signed
-            claims = decode_operator(token, operator_public_key=None, verify=verify)
+            claims = jwts.decode_operator(
+                token, operator_public_key=None, verify=verify
+            )
             # Verify subject manually
             if claims.iss != claims.sub:
                 raise ValueError("Invalid JWT")
-        elif operator_seed:
-            if operator_public_key is None:
-                kp = load_keypair_from_seed(operator_seed)
-                operator_public_key = kp.public_key
-                kp.wipe()
-            claims = decode_operator(
-                token, operator_public_key=operator_public_key, verify=verify
-            )
-        elif operator_public_key:
-            claims = decode_operator(
-                token, operator_public_key=operator_public_key, verify=verify
+        elif public_key:
+            claims = jwts.decode_operator(
+                token, operator_public_key=public_key, verify=verify
             )
         else:
-            raise errors.InvalidPublicKeyError()
+            raise nkeys.errors.InvalidPublicKeyError()
         return cls(
             name=claims.name,
             public_key=claims.iss.encode("utf-8"),
-            seed=operator_seed,
             nats=claims.nats,
             audience=claims.aud,
             not_after=claims.exp,
@@ -162,44 +141,67 @@ class Operator:
         }
         return {key: value for key, value in values.items() if value is not None}
 
-    def add_signing_key(self, public_key: t.Union[str, bytes]) -> "Operator":
+    def add_signing_key(
+        self, public_key: t.Union[str, bytes, bytearray, nkeys.KeyPair]
+    ) -> "Operator":
         public_signing_key = (
-            public_key.decode("utf-8") if isinstance(public_key, bytes) else public_key
+            public_key.decode("utf-8")
+            if isinstance(public_key, (bytes, bytearray))
+            else public_key.public_key.decode("utf-8")
+            if isinstance(public_key, nkeys.KeyPair)
+            else public_key
         )
         if self.nats.signing_keys is None:
             self.nats.signing_keys = []
-        if public_signing_key not in self.nats.signing_keys:
+        if public_signing_key not in [
+            key.key if isinstance(key, jwts.types.SigningKey) else key
+            for key in self.nats.signing_keys
+        ]:
             self.nats.signing_keys.append(public_signing_key)
             self.iat = None
             self.jti = None
         return self
 
-    def remove_signing_key(self, public_key: t.Union[str, bytes]) -> "Operator":
+    def remove_signing_key(
+        self, public_key: t.Union[str, bytes, bytearray, nkeys.KeyPair]
+    ) -> "Operator":
         if self.nats.signing_keys is None:
             return self
         public_signing_key = (
-            public_key.decode("utf-8") if isinstance(public_key, bytes) else public_key
+            public_key.decode("utf-8")
+            if isinstance(public_key, (bytes, bytearray))
+            else public_key.public_key.decode("utf-8")
+            if isinstance(public_key, nkeys.KeyPair)
+            else public_key
         )
-        if public_signing_key in self.nats.signing_keys:
-            self.nats.signing_keys = [
-                key for key in self.nats.signing_keys if key != public_signing_key
-            ]
+
+        old_keys = self.nats.signing_keys.copy()
+        self.nats.signing_keys = [
+            key
+            for key in self.nats.signing_keys
+            if (
+                (key.key != public_signing_key)
+                if isinstance(key, jwts.types.SigningKey)
+                else (key != public_signing_key)
+            )
+        ]
+        if old_keys != self.nats.signing_keys:
             self.iat = None
             self.jti = None
         return self
 
     def set_signing_keys(
-        self, signing_keys: t.List[t.Union[str, bytes, SigningKey]]
+        self, signing_keys: t.List[t.Union[str, bytes, jwts.types.SigningKey]]
     ) -> "Operator":
         keys = [
             key.decode("utf-8")
             if isinstance(key, bytes)
-            else (key.key if isinstance(key, SigningKey) else key)
+            else (key.key if isinstance(key, jwts.types.SigningKey) else key)
             for key in signing_keys
         ]
         if self.nats.signing_keys and sorted(
             [
-                key.key if isinstance(key, SigningKey) else key
+                key.key if isinstance(key, jwts.types.SigningKey) else key
                 for key in self.nats.signing_keys
             ]
         ) == sorted(keys):
@@ -282,13 +284,12 @@ class Operator:
     def verify_account(
         self, token: t.Union[str, bytes], subject: t.Optional[str] = None
     ) -> Account:
-        # FIXME: Implement an "Account" interface and return an account
-        keys: t.List[t.Union[str, SigningKey]] = [self.public_key]
+        keys: t.List[t.Union[str, jwts.types.SigningKey]] = [self.public_key]
         if self.nats.signing_keys:
             keys.extend(self.nats.signing_keys)
         last_exc: t.Optional[Exception] = None
         for key in keys:
-            public_key = key.key if isinstance(key, SigningKey) else key
+            public_key = key.key if isinstance(key, jwts.types.SigningKey) else key
             try:
                 return Account.decode(
                     token,
@@ -296,8 +297,10 @@ class Operator:
                     account_public_key=subject,
                     verify=True,
                 )
-            # FIXME: Catch invalid signature / invalid issuer only
-            except Exception as exc:
+            except (
+                jwts.errors.jwt.exceptions.InvalidTokenError,
+                nkeys.errors.NkeysError,
+            ) as exc:
                 last_exc = exc
                 continue
         if last_exc:
@@ -306,43 +309,36 @@ class Operator:
 
     def sign_account(
         self,
-        account_name: str,
-        account_public_key: t.Union[str, bytes, bytearray],
-        account: t.Union[t.Mapping[str, t.Any], NATSAccount, None] = None,
+        signing_key: t.Union[str, bytes, bytearray],
+        name: str,
+        public_key: t.Union[str, bytes, bytearray],
+        account: t.Union[t.Mapping[str, t.Any], jwts.types.Account, None] = None,
         audience: t.Optional[str] = None,
         not_after: t.Optional[int] = None,
         not_before: t.Optional[int] = None,
         iat: t.Optional[int] = None,
         jti: t.Optional[str] = None,
-        signing_key: t.Union[None, str, bytes, bytearray] = None,
     ) -> str:
-        if signing_key is None:
-            # Raise an error when there is no signing key or seed
-            if self._kp is None:
-                raise errors.CannotSignError()
-            # Use seed when no signing key are available
+        signing_keypair = nkeys.from_seed(signing_key)
+        signing_public_key = signing_keypair.public_key
+        # Check that signing key is valid for the operator
+        if signing_public_key.decode("utf-8") != self.public_key:
+            if not self.nats.signing_keys:
+                raise nkeys.errors.InvalidSeedError()
+            for key in self.nats.signing_keys:
+                pubkey = key.key if isinstance(key, jwts.types.SigningKey) else key
+                if signing_public_key == pubkey:
+                    break
             else:
-                signing_key = self._kp.seed
-        # Make sure that signing key is valid
-        else:
-            signing_keypair = load_keypair_from_seed(signing_key)
-            signing_public_key = signing_keypair.public_key
-            if signing_public_key != self.public_key:
-                if not self.nats.signing_keys:
-                    raise errors.InvalidSeedError()
-                for key in self.nats.signing_keys:
-                    pubkey = key.key if isinstance(key, SigningKey) else key
-                    if signing_public_key == pubkey:
-                        break
-                else:
-                    raise errors.InvalidSeedError()
-        prefix, public_bytes = parser.decode_public_key(account_public_key)
-        if prefix != constants.PREFIX_BYTE_ACCOUNT:
-            raise errors.InvalidPrefixByteError()
-        account_public_key = parser.encode_public_key(prefix, public_bytes)
+                raise nkeys.errors.InvalidSeedError()
+        # Validate account public key
+        prefix, public_bytes = nkeys.encoding.decode_public_key(public_key)
+        if prefix != nkeys.constants.PREFIX_BYTE_ACCOUNT:
+            raise nkeys.errors.InvalidPrefixByteError()
+        account_public_key = nkeys.encoding.encode_public_key(prefix, public_bytes)
         # Encode account
-        return encode_account(
-            name=account_name,
+        return jwts.encode_account(
+            name=name,
             account_public_key=account_public_key,
             operator_seed=signing_key,
             account=account,
@@ -352,3 +348,29 @@ class Operator:
             iat=iat,
             jti=jti,
         )
+
+    def create_account(
+        self,
+        signing_key: t.Union[str, bytes, bytearray],
+        name: str,
+        account: t.Union[t.Mapping[str, t.Any], jwts.types.Account, None] = None,
+        audience: t.Optional[str] = None,
+        not_after: t.Optional[int] = None,
+        not_before: t.Optional[int] = None,
+        iat: t.Optional[int] = None,
+        jti: t.Optional[str] = None,
+    ) -> t.Tuple[nkeys.KeyPair, Account]:
+        account_keypair = nkeys.KeyPair.create("account")
+        account_public_key = account_keypair.public_key.decode("utf-8")
+        token = self.sign_account(
+            signing_key=signing_key,
+            name=name,
+            public_key=account_public_key,
+            account=account,
+            audience=audience,
+            not_after=not_after,
+            not_before=not_before,
+            iat=iat,
+            jti=jti,
+        )
+        return account_keypair, self.verify_account(token, subject=account_public_key)

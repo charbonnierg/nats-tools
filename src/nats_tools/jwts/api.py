@@ -7,9 +7,8 @@ import typing as t
 import jwt
 import jwt.exceptions
 
-from nats_tools.nkeys import KeyPair
-from nats_tools.nkeys import errors as nkeys_errors
-from nats_tools.nkeys import load_keypair_from_seed, parser
+import nats_tools.nkeys as nkeys
+import nats_tools.nkeys.encoding as encoding
 from nats_tools.nkeys.algorithms import ED25519Nkey
 
 from . import errors
@@ -17,7 +16,6 @@ from .types import (
     Account,
     AccountClaims,
     Claims,
-    CredsType,
     Operator,
     OperatorClaims,
     ScopedUser,
@@ -187,15 +185,37 @@ def decode_account(
 def decode_user(
     token: t.Union[str, bytes],
     account_public_key: t.Union[str, bytes, bytearray, None] = None,
+    issuer_public_key: t.Union[str, bytes, bytearray, None] = None,
     user_public_key: t.Union[str, bytes, bytearray, None] = None,
+    scope: t.Optional[str] = None,
     verify: bool = True,
 ) -> ScopedUserClaims:
-    claims = decode(
-        token, issuer=account_public_key, subject=user_public_key, verify=verify
-    )
+    if issuer_public_key:
+        claims = decode(
+            token, issuer=issuer_public_key, subject=user_public_key, verify=verify
+        )
+    else:
+        claims = decode(token, issuer=None, subject=user_public_key, verify=verify)
     if not isinstance(claims.nats, ScopedUser):
         raise errors.InvalidAccessTypeError()
-    return ScopedUserClaims(
+    # Verify account public key
+    if account_public_key:
+        if claims.nats.issuer_account is not None:
+            if nkeys.encoding.decode_public_key(
+                claims.nats.issuer_account
+            ) != nkeys.encoding.decode_public_key(account_public_key):
+                raise errors.jwt.exceptions.InvalidIssuerError()
+        elif nkeys.encoding.decode_public_key(
+            claims.iss
+        ) != nkeys.encoding.decode_public_key(account_public_key):
+            raise errors.jwt.exceptions.InvalidIssuerError()
+    # Verify scope
+    if scope:
+        if claims.nats.tags is None:
+            raise errors.InvalidScopeError()
+        if f"scope:{scope}" not in claims.nats.tags:
+            raise errors.InvalidScopeError()
+    user_claims = ScopedUserClaims(
         jti=claims.jti,
         iat=claims.iat,
         iss=claims.iss,
@@ -206,22 +226,20 @@ def decode_user(
         exp=claims.exp,
         nbf=claims.nbf,
     )
+    return user_claims
 
 
 def encode(
     claims: t.Union[Claims, OperatorClaims, AccountClaims, ScopedUserClaims],
-    seed: t.Union[str, bytes, bytearray, KeyPair],
+    seed: t.Union[str, bytes, bytearray, nkeys.KeyPair],
 ) -> str:
-    keypair = seed if isinstance(seed, KeyPair) else load_keypair_from_seed(seed)
-    try:
-        encoded_jwt = jwt.encode(
-            claims.to_values(),
-            key=keypair.private_key.decode("utf-8"),
-            algorithm=ED25519Nkey,
-            headers={"typ": "JWT"},
-        )
-    finally:
-        keypair.wipe()
+    keypair = seed if isinstance(seed, nkeys.KeyPair) else nkeys.from_seed(seed)
+    encoded_jwt = jwt.encode(
+        claims.to_values(),
+        key=keypair.private_key.decode("utf-8"),
+        algorithm=ED25519Nkey,
+        headers={"typ": "JWT"},
+    )
     return encoded_jwt
 
 
@@ -235,24 +253,20 @@ def encode_operator(
     iat: t.Optional[int] = None,
     jti: t.Optional[str] = None,
 ) -> str:
-    kp = load_keypair_from_seed(operator_seed)
-    try:
-        public_key = kp.public_key.decode("utf-8")
-        claims = OperatorClaims(
-            jti=jti or _jti(),
-            iat=iat or _iat(),
-            iss=kp.public_key.decode("utf-8"),
-            name=name,
-            sub=public_key,
-            nats=Operator.from_values(operator or {}),
-            aud=audience,
-            exp=not_after,
-            nbf=not_before,
-        )
-        token = encode(claims, seed=operator_seed)
-    finally:
-        kp.wipe()
-    return token
+    kp = nkeys.from_seed(operator_seed)
+    public_key = kp.public_key.decode("utf-8")
+    claims = OperatorClaims(
+        jti=jti or _jti(),
+        iat=iat or _iat(),
+        iss=kp.public_key.decode("utf-8"),
+        name=name,
+        sub=public_key,
+        nats=Operator.from_values(operator or {}),
+        aud=audience,
+        exp=not_after,
+        nbf=not_before,
+    )
+    return encode(claims, seed=operator_seed)
 
 
 def encode_account(
@@ -266,25 +280,21 @@ def encode_account(
     iat: t.Optional[int] = None,
     jti: t.Optional[str] = None,
 ) -> str:
-    prefix, public_bytes = parser.decode_public_key(account_public_key)
-    public_key = parser.encode_public_key(prefix, public_bytes)
-    kp = load_keypair_from_seed(operator_seed)
-    try:
-        claims = AccountClaims(
-            jti=jti or _jti(),
-            iat=iat or _iat(),
-            iss=kp.public_key.decode("utf-8"),
-            name=name,
-            sub=public_key.decode("utf-8"),
-            nats=Account.from_values(account or {}),
-            aud=audience,
-            exp=not_after,
-            nbf=not_before,
-        )
-        token = encode(claims, seed=operator_seed)
-    finally:
-        kp.wipe()
-    return token
+    prefix, public_bytes = encoding.decode_public_key(account_public_key)
+    public_key = encoding.encode_public_key(prefix, public_bytes)
+    kp = nkeys.from_seed(operator_seed)
+    claims = AccountClaims(
+        jti=jti or _jti(),
+        iat=iat or _iat(),
+        iss=kp.public_key.decode("utf-8"),
+        name=name,
+        sub=public_key.decode("utf-8"),
+        nats=Account.from_values(account or {}),
+        aud=audience,
+        exp=not_after,
+        nbf=not_before,
+    )
+    return encode(claims, seed=operator_seed)
 
 
 def encode_user(
@@ -298,61 +308,18 @@ def encode_user(
     iat: t.Optional[int] = None,
     jti: t.Optional[str] = None,
 ) -> str:
-    prefix, public_bytes = parser.decode_public_key(user_public_key)
-    public_key = parser.encode_public_key(prefix, public_bytes).decode("utf-8")
-    kp = load_keypair_from_seed(account_seed)
-    try:
-        claims = ScopedUserClaims(
-            jti=jti or _jti(),
-            iat=iat or _iat(),
-            iss=kp.public_key.decode("utf-8"),
-            name=name,
-            sub=public_key,
-            nats=ScopedUser.from_values(user or {}),
-            aud=audience,
-            exp=not_after,
-            nbf=not_before,
-        )
-        token = encode(claims, seed=account_seed)
-    finally:
-        kp.wipe()
-    return token
-
-
-def generate_credentials(
-    user_seed: t.Union[str, bytes, bytearray],
-    user_jwt: t.Optional[str] = None,
-    user_claims: t.Union[
-        Claims, OperatorClaims, AccountClaims, ScopedUserClaims, None
-    ] = None,
-    account_seed: t.Union[None, str, bytes, bytearray] = None,
-) -> str:
-    if user_jwt is None:
-        if user_claims is None or account_seed is None:
-            raise nkeys_errors.CannotSignError(
-                "Either user_jwt or both user_claims and account_seed must be provided"
-            )
-        else:
-            if user_claims.nats.type != CredsType.USER:
-                raise errors.InvalidAccessTypeError()
-            user_jwt = encode(user_claims, seed=account_seed)
-    user_kp = load_keypair_from_seed(user_seed)
-    try:
-
-        creds = f"""-----BEGIN NATS USER JWT-----
-{user_jwt}
-------END NATS USER JWT------
-
-************************* IMPORTANT *************************
-NKEY Seed printed below can be used to sign and prove identity.
-NKEYs are sensitive and should be treated as secrets.
-
------BEGIN USER NKEY SEED-----
-{user_kp.seed.decode('utf-8')}
-------END USER NKEY SEED------
-
-*************************************************************
-"""
-    finally:
-        user_kp.wipe()
-    return creds
+    prefix, public_bytes = encoding.decode_public_key(user_public_key)
+    public_key = encoding.encode_public_key(prefix, public_bytes).decode("utf-8")
+    kp = nkeys.from_seed(account_seed)
+    claims = ScopedUserClaims(
+        jti=jti or _jti(),
+        iat=iat or _iat(),
+        iss=kp.public_key.decode("utf-8"),
+        name=name,
+        sub=public_key,
+        nats=ScopedUser.from_values(user or {}),
+        aud=audience,
+        exp=not_after,
+        nbf=not_before,
+    )
+    return encode(claims, seed=account_seed)

@@ -1,25 +1,23 @@
 from .api import (
     create_keypair,
-    load_ed25519_private_key,
-    load_ed25519_public_key,
-    load_keypair_from_private_key,
-    load_keypair_from_seed,
+    from_private_bytes,
+    from_seed,
     sign,
     verify,
 )
-from .keypair import KeyPair
-
-# To ensure compatibility with nats-py
-from_keypair = load_keypair_from_seed
-
+from .kp import KeyPair
+from . import constants
+from . import encoding
+from . import errors
 
 __all__ = [
     "KeyPair",
-    "load_ed25519_private_key",
-    "load_ed25519_public_key",
-    "load_keypair_from_private_key",
-    "load_keypair_from_seed",
     "create_keypair",
+    "constants",
+    "encoding",
+    "errors",
+    "from_private_bytes",
+    "from_seed",
     "sign",
     "verify",
 ]

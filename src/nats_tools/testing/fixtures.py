@@ -37,8 +37,7 @@ def nats_operator(request: SubRequest) -> Operator:
         params = {}
     if "name" not in params:
         params["name"] = "TEST"
-    keypair, operator = Operator.create(**params)
-    operator._kp = keypair
+    _, operator = Operator.create(**params)
     return operator
 
 

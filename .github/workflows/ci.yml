@@ -19,7 +19,7 @@ jobs:
 
       - name: Install nats-server
         run: |
-          bash ./scripts/install_nats.sh
+          bash ./scripts/install-nats-server.sh
 
       - name: Install dependencies
         run: |

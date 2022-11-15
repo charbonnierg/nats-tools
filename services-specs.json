@@ -1,0 +1,171 @@
+{
+    "accounts": [
+        {
+            "name": "BLE",
+            "exports": [
+                {
+                    "name": "BLE Streams",
+                    "type": "stream",
+                    "subject": "pub.ble.*.*.>",
+                    "account_token_position": 3,
+                    "info_url": "https://docs.quara-dev.com/ble-gateway/streams",
+                    "description": "BLE data stream"
+                },
+                {
+                    "name": "BLE API",
+                    "type": "service",
+                    "subject": "req.ble.*.*.>",
+                    "info_url": "https://docs.quara-dev.com/ble-gateway/api",
+                    "description": "BLE API"
+                },
+                {
+                    "name": "BLE Admin API",
+                    "type": "service",
+                    "subject": "admin.ble.*.*.>",
+                    "info_url": "https://docs.quara-dev.com/ble-gateway/admin",
+                    "description": "BLE Administration API"
+                }
+            ]
+        },
+        {
+            "name": "OPC UA",
+            "exports": [
+                {
+                    "name": "OPC UA Streams",
+                    "type": "stream",
+                    "subject": "pub.opcua.*.*.>",
+                    "account_token_position": 3,
+                    "info_url": "https://docs.quara-dev.com/opcua-gateway/streams",
+                    "description": "OPC UA data stream"
+                },
+                {
+                    "name": "OPC UA API",
+                    "type": "service",
+                    "subject": "req.opcua.*.*.>",
+                    "info_url": "https://docs.quara-dev.com/opcua-gateway/api",
+                    "description": "OPC UA API"
+                },
+                {
+                    "name": "OPC UA Admin API",
+                    "type": "service",
+                    "subject": "admin.opcua.*.*.>",
+                    "info_url": "https://docs.quara-dev.com/opcua-gateway/admin",
+                    "description": "OPC UA Administration API"
+                }
+            ]
+        },
+        {
+            "name": "ML",
+            "exports": [
+                {
+                    "name": "ML API",
+                    "type": "service",
+                    "subject": "req.ml.*.>",
+                    "info_url": "https://docs.quara-dev.com/ml-services/api",
+                    "description": "Machine Learning API"
+                }
+            ]
+        },
+        {
+            "name": "VISION",
+            "exports": [
+                {
+                    "name": "Vision API",
+                    "type": "service",
+                    "subject": "req.vision.*.>",
+                    "info_url": "https://docs.quara-dev.com/vision-services/api",
+                    "description": "Vision Service API"
+                }
+            ]
+        },
+        {
+            "name": "MDM",
+            "exports": [
+                {
+                    "name": "CRUD API",
+                    "type": "service",
+                    "subject": "req.mdm.*.>",
+                    "info_url": "https://docs.quara-dev.com/signals-processing/services/api",
+                    "description": "Master Data Management CRUD API"
+                },
+                {
+                    "name": "Admin API",
+                    "type": "service",
+                    "subject": "admin.mdm.*.>",
+                    "info_url": "https://docs.quara-dev.com/signals-processing/services/admin",
+                    "description": "Master Data Management Admin API"
+                },
+                {
+                    "name": "MDM Streams",
+                    "type": "stream",
+                    "subject": "pub.mdm.*.*.>",
+                    "info_url": "https://docs.quara-dev.com/master-data-management/services/api",
+                    "description": "Master Data Management update streams"
+                }
+            ]
+        },
+        {
+            "name": "QUARA_AGENT",
+            "exports": [
+                {
+                    "name": "AGENT API",
+                    "type": "service",
+                    "subject": "req.agent.*.*.>",
+                    "info_url": "https://docs.quara-dev.com/quara-agent/services/agent",
+                    "description": "QUARA Agent API"
+                }
+            ]
+        },
+        {
+            "name": "SMARTGLOVE",
+            "exports": [
+                {
+                    "name": "SMARTGLOVE API",
+                    "type": "service",
+                    "subject": "req.sg.*.>",
+                    "info_url": "https://docs.quara-dev.com/smartglove-gateway/services/api",
+                    "description": "Smartglove API"
+                },
+                {
+                    "name": "SMARTGLOVE Admin API",
+                    "type": "service",
+                    "subject": "admin.sg.*.>",
+                    "info_url": "https://docs.quara-dev.com/smartglove-gateway/services/admin",
+                    "description": "Smartglove Administration API"
+                },
+                {
+                    "name": "SMARTGLOVE Data Streams",
+                    "type": "stream",
+                    "subject": "pub.sg.data.*.*.>",
+                    "account_token_position": 3,
+                    "info_url": "https://docs.quara-dev.com/smartglove-gateway/services/streams",
+                    "description": "Smartglove data streams"
+                },
+                {
+                    "name": "SMARTGLOVE Monitoring Streams",
+                    "type": "stream",
+                    "subject": "pub.sg.monitor.*.*.>",
+                    "account_token_position": 3,
+                    "info_url": "https://docs.quara-dev.com/smartglove-gateway/services/streams#Monitoring",
+                    "description": "Smartglove monitoring streams"
+                }
+            ],
+            "imports": [
+                {
+                    "account": "{{BLE_ACCOUNT_ID}}",
+                    "local_subject": "pub.ble.>",
+                    "name": "BLE Streams",
+                    "subject": "pub.ble.{{SMARTGLOVE_ACCOUNT_ID}}.>",
+                    "type": "stream"
+                },
+                {
+                    "account": "{{BLE_ACCOUNT_ID}}",
+                    "local_subject": "req.ble.>",
+                    "name": "BLE API",
+                    "subject": "req.ble.{{SMARTGLOVE_ACCOUNT_ID}}.>",
+                    "type": "service"
+                }
+            ]
+        }
+    ]
+}

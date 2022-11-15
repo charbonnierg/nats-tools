@@ -12,7 +12,13 @@ from nats_tools.jwts.api import (
 )
 from nats_tools.jwts.types import Account as NATSAccount
 from nats_tools.jwts.types import ScopedUser, ScopedUserClaims, SigningKey
-from nats_tools.nkeys import KeyPair, constants, errors, load_keypair_from_seed, parser
+from nats_tools.nkeys import (
+    KeyPair,
+    constants,
+    encoding,
+    errors,
+    from_seed,
+)
 
 
 class Account:
@@ -40,22 +46,24 @@ class Account:
         self.nats = nats or NATSAccount.from_values(kwargs)
         self._kp: t.Optional[KeyPair] = None
         # Validate account public key
-        prefix, public_bytes = parser.decode_public_key(public_key=public_key)
+        prefix, public_bytes = encoding.decode_public_key(public_key=public_key)
         if prefix != constants.PREFIX_BYTE_ACCOUNT:
             raise errors.InvalidPublicKeyError()
-        self.public_key = parser.encode_public_key(prefix, public_bytes).decode("utf-8")
+        self.public_key = encoding.encode_public_key(prefix, public_bytes).decode(
+            "utf-8"
+        )
         # Validate operator public key
-        operator_prefix, operator_public_bytes = parser.decode_public_key(
+        operator_prefix, operator_public_bytes = encoding.decode_public_key(
             public_key=operator_public_key
         )
         if operator_prefix != constants.PREFIX_BYTE_OPERATOR:
             raise errors.InvalidPublicKeyError()
-        self.operator_public_key = parser.encode_public_key(
+        self.operator_public_key = encoding.encode_public_key(
             operator_prefix, operator_public_bytes
         ).decode("utf-8")
         # Validate account seed
         if seed:
-            kp = load_keypair_from_seed(seed)
+            kp = from_seed(seed)
             if kp.public_key.decode("utf-8") != self.public_key:
                 raise errors.InvalidPublicKeyError()
             self._kp = kp
@@ -66,7 +74,7 @@ class Account:
         """Return account JWT"""
         if operator_seed is None:
             raise errors.CannotSignError()
-        kp = load_keypair_from_seed(operator_seed)
+        kp = from_seed(operator_seed)
         if kp.public_key.decode("utf-8") != self.operator_public_key:
             raise errors.InvalidPublicKeyError()
         if self.iat is None:
@@ -97,7 +105,7 @@ class Account:
         """Create a new Account from account JWT"""
         # Optionally fetch public key from seed
         if account_seed and account_public_key is None:
-            account_public_key = load_keypair_from_seed(account_seed).public_key
+            account_public_key = from_seed(account_seed).public_key
         # Decode account
         claims = decode_account(
             token,
@@ -262,7 +270,7 @@ class Account:
                 signing_key = self._kp.seed
         # Make sure that signing key is valid
         else:
-            signing_keypair = load_keypair_from_seed(signing_key)
+            signing_keypair = from_seed(signing_key)
             signing_public_key = signing_keypair.public_key
             if signing_public_key != self.public_key:
                 if not self.nats.signing_keys:

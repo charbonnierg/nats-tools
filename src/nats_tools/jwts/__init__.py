@@ -8,6 +8,13 @@ from .api import (
     encode_operator,
     encode_user,
 )
+from .creds import (
+    generate_credentials,
+    mount_credentials,
+)
+from . import types
+from . import errors
+from . import creds
 
 __all__ = [
     "decode",
@@ -18,4 +25,9 @@ __all__ = [
     "encode_operator",
     "encode_account",
     "encode_user",
+    "creds",
+    "types",
+    "errors",
+    "generate_credentials",
+    "mount_credentials",
 ]

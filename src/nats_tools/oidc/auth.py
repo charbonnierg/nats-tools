@@ -107,7 +107,7 @@ class OIDCAuthenticator:
         self.default_algorithms = jwt.algorithms.get_default_algorithms()
         self.well_known_uri = well_known_uri
         self.well_known: t.Dict[str, t.Any] = {}
-        self._issuer_public_key: t.Optional[t.Any] = None
+        self._issuer_public_keys: t.Optional[t.List[t.Any]] = None
         self._algorithm: t.Optional[str] = None
 
     async def __aenter__(self) -> "OIDCAuthenticator":
@@ -213,17 +213,20 @@ class OIDCAuthenticator:
         response = await self.client.get(jwks_url)
         response.raise_for_status()
         jwks: t.List[t.Dict[str, t.Any]] = response.json()["keys"]
+        issuer_public_keys = []
         for key in jwks:
+            if key["kty"] == "RSA":
+                key["alg"] = "RS256"
             if "alg" in key and key["alg"] in self.default_algorithms:
                 self._algorithm = key["alg"]
-                self._issuer_public_key = self.default_algorithms[
-                    self._algorithm
-                ].from_jwk(key)
-                break
-        else:
+                issuer_public_keys.append(
+                    self.default_algorithms[self._algorithm].from_jwk(key)
+                )
+        if issuer_public_keys is None:
             raise KeyError(
                 f"No public found with supported algorithm ({list(self.default_algorithms)})"
             )
+        self._issuer_public_keys = issuer_public_keys
 
     def get_algorithm(self) -> str:
         """Get algorithm used to validate JWT"""
@@ -233,12 +236,12 @@ class OIDCAuthenticator:
             "Algorithm is not configured. Make sure OIDCAuthenticator is started."
         )
 
-    def get_issuer_public_key(self) -> t.Any:
+    def get_issuer_public_keys(self) -> t.Any:
         """Get public key used to validate JWT."""
-        if self._issuer_public_key:
-            return self._issuer_public_key
+        if self._issuer_public_keys:
+            return self._issuer_public_keys
         raise ValueError(
-            "Issuer public key is not configured. Make sure OIDCAuthenticator is started."
+            "Issuer public keys are not configured. Make sure OIDCAuthenticator is started."
         )
 
     def decode_token(
@@ -259,20 +262,29 @@ class OIDCAuthenticator:
         Returns:
             A dictionary holding fields found within JWT.
         """
-        key = self.get_issuer_public_key()
+        keys = self.get_issuer_public_keys()
         algorithm = self.get_algorithm()
         options: t.Dict[str, t.Any] = {"verify_signature": verify_signature}
         if verify_audience:
             options["verify_aud"] = True
         else:
             options["verify_aud"] = False
-        return jwt.decode(
-            token,
-            key=key,
-            algorithms=[algorithm],
-            audience=audience,
-            options=options,
-        )
+        error: t.Optional[Exception] = None
+        for key in keys:
+            try:
+                return jwt.decode(
+                    token,
+                    key=key,
+                    algorithms=[algorithm],
+                    audience=audience,
+                    options=options,
+                )
+            except Exception as exc:
+                error = exc
+                continue
+        if error:
+            raise error
+        raise Exception("Failed to decode jwt")
 
     def decode_access_token(
         self,
